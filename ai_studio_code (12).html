@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>3D Bike Configurator Studio · Light Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-page: #f4f6fa;
+      --bg-panel: #ffffff;
+      --bg-card: #f8fafc;
+      --bg-card-hover: #f1f5f9;
+      --border: rgba(15, 23, 42, 0.09);
+      --border-strong: rgba(15, 23, 42, 0.16);
+      --border-active: #e63e21;
+      --accent: #e63e21;
+      --accent-soft: rgba(230, 62, 33, 0.09);
+      --ink: #0f172a;
+      --text-main: #0f172a;
+      --text-muted: #5b6475;
+      --success: #047857;
+      --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      background: var(--bg-page);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
+    }
+
+    /* =========================================================
+       DESKTOP: BIKE ON LEFT · CONFIGURATORS ON RIGHT (LIGHT)
+       ========================================================= */
+    .bike-configurator-section {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(380px, 490px);
+      min-height: 100dvh;
+      width: 100%;
+      background: #eef2f7;
+    }
+
+    /* ---------- LEFT: DAYLIGHT CYCLORAMA 3D STAGE ---------- */
+    .stage-column {
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      min-height: 520px;
+      overflow: hidden;
+      user-select: none;
+      background: radial-gradient(circle at 50% 45%, #ffffff 0%, #eff3f8 56%, #dde4ee 100%);
+    }
+
+    #three-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      outline: none;
+      touch-action: none;
+    }
+
+    #three-canvas:active {
+      cursor: grabbing;
+    }
+
+    .stage-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 52%, transparent 56%, rgba(203, 213, 225, 0.42) 100%),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, transparent 16%, transparent 84%, rgba(226, 232, 240, 0.55) 100%);
+    }
+
+    /* Loading Overlay */
+    .loader-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(248, 250, 252, 0.88);
+      backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 20px;
+      text-align: center;
+      z-index: 20;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+
+    .loader-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(15px, 2vw, 18px);
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .loader-bar-wrap {
+      width: min(240px, 72vw);
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.1);
+      overflow: hidden;
+    }
+
+    .loader-bar-fill {
+      width: 10%;
+      height: 100%;
+      background: linear-gradient(90deg, #e63e21, #fb7155);
+      border-radius: 999px;
+      transition: width 0.2s ease;
+    }
+
+    .loader-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Top Stage HUD */
+    .stage-hud-top {
+      position: absolute;
+      top: 18px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 5;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .brand-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(230, 62, 33, 0.45);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.8); }
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(18px, 2.2vw, 29px);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-credit {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stage-actions {
+      pointer-events: auto;
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      color: var(--ink);
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .hud-btn:hover {
+      border-color: var(--border-strong);
+      background: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .hud-btn.active {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #ffffff;
+    }
+
+    /* Bottom Stage HUD */
+    .stage-hud-bottom {
+      position: absolute;
+      bottom: 18px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+      z-index: 5;
+      gap: 14px;
+    }
+
+    .focus-callout {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      box-shadow: var(--shadow-md);
+      padding: 11px 14px;
+      border-radius: 12px;
+      max-width: 390px;
+      pointer-events: auto;
+    }
+
+    .focus-callout-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+
+    .focus-callout-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .focus-callout-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .orbit-hint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 7px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    /* ---------- RIGHT: LIGHT CONFIGURATOR PANEL ---------- */
+    .config-column {
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      box-shadow: -10px 0 35px rgba(15, 23, 42, 0.04);
+    }
+
+    .config-header {
+      padding: 20px 22px 15px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .config-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .config-header p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .perm-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      background: #ecfdf5;
+      border: 1px solid rgba(4, 120, 87, 0.2);
+      padding: 6px 10px;
+      border-radius: 8px;
+      color: var(--success);
+      white-space: nowrap;
+    }
+
+    .step-pills {
+      display: flex;
+      gap: 6px;
+      padding: 11px 22px;
+      border-bottom: 1px solid var(--border);
+      background: #fafbfd;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .step-pills::-webkit-scrollbar {
+      display: none;
+    }
+
+    .step-pill {
+      flex-shrink: 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .step-pill:hover {
+      color: var(--ink);
+      border-color: var(--border-strong);
+    }
+
+    .step-pill.active {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #ffffff;
+    }
+
+    .questions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    .question-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 15px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      cursor: pointer;
+    }
+
+    .question-card:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .question-card.active {
+      border-color: var(--border-active);
+      box-shadow: 0 0 0 1px rgba(230, 62, 33, 0.14), var(--shadow-md);
+      background: #ffffff;
+    }
+
+    .q-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+
+    .q-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+
+    .q-prompt {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+
+    .q-zoom-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .question-card.active .q-zoom-tag {
+      color: var(--accent);
+      border-color: rgba(230, 62, 33, 0.35);
+      background: var(--accent-soft);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .options-grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .options-grid.swatches {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .option-btn {
+      text-align: left;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 11px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .option-btn:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .option-btn.selected {
+      border-color: var(--accent);
+      background: linear-gradient(145deg, rgba(230, 62, 33, 0.08), rgba(230, 62, 33, 0.02));
+      box-shadow: inset 0 0 0 1px rgba(230, 62, 33, 0.22);
+    }
+
+    .opt-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .opt-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .opt-price {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--success);
+      margin-top: 2px;
+    }
+
+    .swatch-btn {
+      align-items: center;
+      justify-content: center;
+      padding: 9px 4px;
+      text-align: center;
+    }
+
+    .swatch-circle {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(15, 23, 42, 0.14);
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.16);
+      margin-bottom: 4px;
+    }
+
+    .swatch-btn.selected .swatch-circle {
+      border-color: #ffffff;
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    /* Footer */
+    .config-footer {
+      border-top: 1px solid var(--border);
+      background: #ffffff;
+      padding: 14px 22px calc(16px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .spec-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .spec-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 9px;
+      min-width: 0;
+    }
+
+    .spec-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .spec-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .footer-cta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .price-block small {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .price-block strong {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+
+    .cta-primary {
+      flex: 1;
+      background: linear-gradient(135deg, #f04829, #cf2d12);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 8px 22px rgba(230, 62, 33, 0.28);
+    }
+
+    .cta-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(230, 62, 33, 0.38);
+    }
+
+    .build-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(90px);
+      background: var(--ink);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+      z-index: 50;
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+
+    .build-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* =========================================================
+       TABLET & MOBILE RESPONSIVE BREAKPOINTS
+       ========================================================= */
+    @media (max-width: 1024px) {
+      .bike-configurator-section {
+        grid-template-columns: 1fr;
+        min-height: 100dvh;
+      }
+
+      .stage-column {
+        position: sticky;
+        top: 0;
+        height: clamp(300px, 45dvh, 430px);
+        min-height: 290px;
+        z-index: 15;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .config-column {
+        min-height: auto;
+        border-left: none;
+      }
+
+      .questions-list {
+        overflow-y: visible;
+      }
+
+      .orbit-hint {
+        display: none;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .stage-column {
+        height: clamp(280px, 44dvh, 360px);
+        min-height: 270px;
+      }
+
+      .stage-hud-top {
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .brand-eyebrow {
+        font-size: 9.5px;
+      }
+
+      .brand-title {
+        font-size: 18px;
+      }
+
+      .brand-credit {
+        display: none;
+      }
+
+      .stage-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+      }
+
+      .stage-actions::-webkit-scrollbar {
+        display: none;
+      }
+
+      .hud-btn {
+        font-size: 11px;
+        padding: 5px 10px;
+      }
+
+      .stage-hud-bottom {
+        bottom: 10px;
+        left: 12px;
+        right: 12px;
+      }
+
+      .focus-callout {
+        max-width: 100%;
+        width: 100%;
+        padding: 7px 11px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .focus-callout-label {
+        margin-bottom: 0;
+        font-size: 9.5px;
+        white-space: nowrap;
+      }
+
+      .focus-callout-title {
+        font-size: 12.5px;
+        margin-bottom: 0;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .focus-callout-desc {
+        display: none;
+      }
+
+      .config-header {
+        padding: 14px 16px 12px;
+      }
+
+      .config-header h2 {
+        font-size: 16px;
+      }
+
+      .step-pills {
+        padding: 10px 16px;
+      }
+
+      .questions-list {
+        padding: 14px 16px 18px;
+        gap: 11px;
+      }
+
+      .question-card {
+        padding: 13px;
+      }
+
+      .q-zoom-tag {
+        display: none;
+      }
+
+      .options-grid.cols-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .options-grid.swatches {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .swatch-btn .opt-title {
+        font-size: 10.5px;
+      }
+
+      .config-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 12;
+        padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+      }
+
+      .footer-cta-row {
+        gap: 10px;
+      }
+
+      .price-block strong {
+        font-size: 19px;
+      }
+
+      .cta-primary {
+        padding: 11px 12px;
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+      .options-grid.swatches {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .footer-cta-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <section class="bike-configurator-section" id="bike-visualizer">
+
+    <!-- LEFT (DESKTOP) / STICKY TOP (MOBILE): CLEAN DAYLIGHT 3D STUDIO -->
+    <div class="stage-column" id="stage-container">
+      <canvas id="three-canvas"></canvas>
+      <div class="stage-vignette"></div>
+
+      <div class="loader-overlay" id="loader-overlay">
+        <div class="loader-title">Loading Realistic 3D Bike...</div>
+        <div class="loader-bar-wrap"><div class="loader-bar-fill" id="loader-bar"></div></div>
+        <div class="loader-sub" id="loader-status">Connecting to open-source GLB studio asset</div>
+      </div>
+
+      <div class="stage-hud-top">
+        <div class="brand-badge">
+          <div class="brand-eyebrow"><span class="pulse-dot"></span> DAYLIGHT 3D ATELIER</div>
+          <div class="brand-title" id="bike-model-title">Yamaha MT-09 SP</div>
+          <div class="brand-credit" id="bike-model-credit">Open-Source 3D Model (CC-BY-NC-SA 4.0)</div>
+        </div>
+        <div class="stage-actions">
+          <button class="hud-btn" id="btn-overview">⌖ Full Bike</button>
+          <button class="hud-btn active" id="btn-spin">⟳ Auto-Orbit</button>
+          <button class="hud-btn" id="btn-randomize">✦ Randomize</button>
+          <label class="hud-btn" for="custom-glb-input" title="Load your own .glb bike model">
+            ⇪ Custom .GLB
+          </label>
+          <input type="file" id="custom-glb-input" accept=".glb,.gltf" hidden />
+        </div>
+      </div>
+
+      <div class="stage-hud-bottom">
+        <div class="focus-callout">
+          <div class="focus-callout-label" id="callout-zone">INSPECTING: FULL BIKE</div>
+          <div class="focus-callout-title" id="callout-title">Hero 3/4 Studio Angle</div>
+          <div class="focus-callout-desc" id="callout-desc">
+            Select any question on the configurator panel to zoom smoothly into that component.
+          </div>
+        </div>
+        <div class="orbit-hint">Drag to orbit · Scroll to zoom</div>
+      </div>
+    </div>
+
+    <!-- RIGHT (DESKTOP) / SCROLLABLE BELOW (MOBILE): CONFIGURATORS -->
+    <aside class="config-column">
+      <div class="config-header">
+        <div>
+          <h2>Configure Your Bike</h2>
+          <p>Tap any question to zoom directly into that part.</p>
+        </div>
+        <div class="perm-badge" id="perm-code">360 Combos</div>
+      </div>
+
+      <div class="step-pills" id="step-pills"></div>
+      <div class="questions-list" id="questions-list"></div>
+
+      <div class="config-footer">
+        <div class="spec-strip">
+          <div class="spec-box">
+            <div class="spec-label">Wet Weight</div>
+            <div class="spec-val" id="spec-weight">193.0 kg</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">Braking</div>
+            <div class="spec-val" id="spec-brake">9.8 / 10</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">Spec Code</div>
+            <div class="spec-val" id="spec-build-id">DSC-OHL-BLU</div>
+          </div>
+        </div>
+
+        <div class="footer-cta-row">
+          <div class="price-block">
+            <small>CONFIGURED MSRP</small>
+            <strong id="total-price">$12,499</strong>
+          </div>
+          <button class="cta-primary" id="btn-reserve">Save Build →</button>
+        </div>
+      </div>
+    </aside>
+
+  </section>
+
+  <div class="build-toast" id="build-toast"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+    import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+    /* =========================================================
+       1. CONFIGURATOR QUESTIONS, OPTIONS & CAMERA PRESETS
+       ========================================================= */
+    const QUESTIONS = [
+      {
+        id: 'brakes',
+        stepLabel: '01 · Brakes',
+        prompt: 'What type of brakes do you prefer?',
+        zoneTag: 'FRONT BRAKE',
+        camera: { pos: new THREE.Vector3(1.16, 0.42, 0.80), target: new THREE.Vector3(0.70, 0.31, 0.04) },
+        isZoomed: true,
+        layout: 'cols-2',
+        options: [
+          {
+            value: 'disc',
+            title: 'Brembo Radial Disc',
+            meta: '298mm dual rotors + red monoblock calipers',
+            priceDelta: 480,
+            weightDelta: -1.4,
+            brakeScore: '9.8 / 10',
+            code: 'DSC'
+          },
+          {
+            value: 'drum',
+            title: 'Classic Finned Drum',
+            meta: 'CNC-finned alloy drum hub & torque stay',
+            priceDelta: 0,
+            weightDelta: +2.4,
+            brakeScore: '7.5 / 10',
+            code: 'DRM'
+          }
+        ]
+      },
+      {
+        id: 'suspension',
+        stepLabel: '02 · Suspension',
+        prompt: 'What type of suspension do you want?',
+        zoneTag: 'FORKS & SHOCK',
+        camera: { pos: new THREE.Vector3(1.12, 0.72, 1.12), target: new THREE.Vector3(0.32, 0.54, 0.0) },
+        isZoomed: true,
+        layout: 'cols-3',
+        options: [
+          {
+            value: 'ohlins',
+            title: 'Öhlins Gold USD',
+            meta: '41mm TiN gold inverted forks + reservoir',
+            priceDelta: 950,
+            weightDelta: -0.9,
+            code: 'OHL'
+          },
+          {
+            value: 'dlc',
+            title: 'DLC Stealth Fork',
+            meta: 'Diamond-like carbon black stanchions',
+            priceDelta: 420,
+            weightDelta: -0.5,
+            code: 'DLC'
+          },
+          {
+            value: 'chrome',
+            title: 'Factory Chrome',
+            meta: 'Polished steel stanchions + red spring',
+            priceDelta: 0,
+            weightDelta: 0,
+            code: 'CHR'
+          }
+        ]
+      },
+      {
+        id: 'wheels',
+        stepLabel: '03 · Wheels',
+        prompt: 'Which wheel finish matches your build?',
+        zoneTag: 'WHEEL RIMS',
+        camera: { pos: new THREE.Vector3(-1.18, 0.46, 1.06), target: new THREE.Vector3(-0.68, 0.32, 0.0) },
+        isZoomed: true,
+        layout: 'cols-2',
+        options: [
+          {
+            value: 'blue',
+            title: 'Icon Racing Blue',
+            meta: 'Signature Yamaha GP anodized blue rims',
+            priceDelta: 0,
+            weightDelta: 0,
+            code: 'BLU'
+          },
+          {
+            value: 'gold',
+            title: 'Forged Moto Gold',
+            meta: 'Lightweight brushed champagne gold alloy',
+            priceDelta: 340,
+            weightDelta: -1.8,
+            code: 'GLD'
+          }
+        ]
+      },
+      {
+        id: 'tires',
+        stepLabel: '04 · Tires',
+        prompt: 'Select your tire & rim accent spec',
+        zoneTag: 'TIRE & STRIPE',
+        camera: { pos: new THREE.Vector3(1.16, 0.25, 0.72), target: new THREE.Vector3(0.70, 0.22, 0.02) },
+        isZoomed: true,
+        layout: 'cols-2',
+        options: [
+          {
+            value: 'hypersport',
+            title: 'Hypersport + GP Stripe',
+            meta: 'Track-compound rubber + rim pinstripe',
+            priceDelta: 220,
+            weightDelta: 0,
+            code: 'GPX'
+          },
+          {
+            value: 'touring',
+            title: 'Sport Touring Stealth',
+            meta: 'All-weather dual-compound sidewall',
+            priceDelta: 0,
+            weightDelta: +0.6,
+            code: 'STR'
+          }
+        ]
+      },
+      {
+        id: 'livery',
+        stepLabel: '05 · Paint',
+        prompt: 'Choose your sculpted tank & fairing finish',
+        zoneTag: 'TANK & BODY',
+        camera: { pos: new THREE.Vector3(1.24, 1.10, 1.18), target: new THREE.Vector3(0.10, 0.72, 0.0) },
+        isZoomed: true,
+        layout: 'swatches',
+        options: [
+          { value: 'cyan', title: 'Blue', color: '#0b5cff', priceDelta: 0, weightDelta: 0, code: 'ICB' },
+          { value: 'crimson', title: 'Red', color: '#d81e28', priceDelta: 250, weightDelta: 0, code: 'CRD' },
+          { value: 'stealth', title: 'Stealth', color: '#1b1f27', priceDelta: 300, weightDelta: 0, code: 'STL' },
+          { value: 'titanium', title: 'Ti Silver', color: '#9ca6b8', priceDelta: 350, weightDelta: 0, code: 'LTI' },
+          { value: 'emerald', title: 'Emerald', color: '#0c5c44', priceDelta: 320, weightDelta: 0, code: 'EMR' }
+        ]
+      },
+      {
+        id: 'optics',
+        stepLabel: '06 · Optics',
+        prompt: 'Choose your front LED lighting signature',
+        zoneTag: 'LED OPTICS',
+        camera: { pos: new THREE.Vector3(1.18, 0.96, 0.66), target: new THREE.Vector3(0.54, 0.82, 0.0) },
+        isZoomed: true,
+        layout: 'cols-3',
+        options: [
+          { value: 'ice', title: 'Ice Bi-LED', meta: '6500K crisp white DRL', priceDelta: 0, weightDelta: 0, code: 'ICE' },
+          { value: 'amber', title: 'Track Amber', meta: 'GT endurance yellow', priceDelta: 180, weightDelta: 0, code: 'AMB' },
+          { value: 'smoked', title: 'Smoked Tint', meta: 'Stealth tinted lens', priceDelta: 140, weightDelta: 0, code: 'SMK' }
+        ]
+      }
+    ];
+
+    const HERO_CAMERA = {
+      pos: new THREE.Vector3(2.02, 0.98, 2.02),
+      target: new THREE.Vector3(0.0, 0.52, 0.0),
+      isZoomed: false
+    };
+
+    const state = {
+      brakes: 'disc',
+      suspension: 'ohlins',
+      wheels: 'blue',
+      tires: 'hypersport',
+      livery: 'cyan',
+      optics: 'ice',
+      activeQuestionId: null,
+      autoRotate: true
+    };
+
+    /* =========================================================
+       2. THREE.JS DAYLIGHT STUDIO RENDERER & CYCLORAMA FLOOR
+       ========================================================= */
+    const canvas = document.getElementById('three-canvas');
+    const stageContainer = document.getElementById('stage-container');
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(stageContainer.clientWidth, stageContainer.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 1.0;
+
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      Math.max(0.5, stageContainer.clientWidth / Math.max(1, stageContainer.clientHeight)),
+      0.05,
+      40
+    );
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 0.55;
+    controls.maxDistance = 5.4;
+    controls.maxPolarAngle = Math.PI * 0.495;
+    controls.minPolarAngle = 0.1;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
+
+    function getResponsiveCameraView(basePos, baseTarget, isZoomed = false) {
+      const w = Math.max(1, stageContainer.clientWidth);
+      const h = Math.max(1, stageContainer.clientHeight);
+      const aspect = w / h;
+
+      const tFov = THREE.MathUtils.clamp((1.35 - aspect) / (1.35 - 0.75), 0, 1);
+      const targetFov = THREE.MathUtils.lerp(38, 46, tFov);
+
+      const refAspect = 1.45;
+      const refSpan = refAspect * Math.tan(THREE.MathUtils.degToRad(38) * 0.5);
+      const curSpan = aspect * Math.tan(THREE.MathUtils.degToRad(targetFov) * 0.5);
+      const fullDistScale = THREE.MathUtils.clamp(refSpan / curSpan, 1.0, 1.85);
+      const distScale = isZoomed ? 1 + (fullDistScale - 1) * 0.45 : fullDistScale;
+
+      const offset = basePos.clone().sub(baseTarget).multiplyScalar(distScale);
+      const adjustedTarget = baseTarget.clone();
+
+      if (!isZoomed && w <= 768) {
+        adjustedTarget.y -= 0.04;
+      }
+
+      return {
+        fov: targetFov,
+        pos: adjustedTarget.clone().add(offset),
+        target: adjustedTarget
+      };
+    }
+
+    const initialView = getResponsiveCameraView(HERO_CAMERA.pos, HERO_CAMERA.target, false);
+    camera.fov = initialView.fov;
+    camera.updateProjectionMatrix();
+    camera.position.copy(initialView.pos);
+    controls.target.copy(initialView.target);
+
+    // Daylight Studio Softbox Rig
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.85));
+
+    const keyLight = new THREE.DirectionalLight(0xfffaf5, 2.0);
+    keyLight.position.set(2.8, 4.8, 2.8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    const d = 1.75;
+    keyLight.shadow.camera.left = -d;
+    keyLight.shadow.camera.right = d;
+    keyLight.shadow.camera.top = d;
+    keyLight.shadow.camera.bottom = -d;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.SpotLight(0xdbeafe, 10, 10, Math.PI / 4, 0.75, 1.2);
+    rimLight.position.set(-2.6, 2.5, -2.5);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.PointLight(0xffffff, 1.6, 6);
+    fillLight.position.set(1.8, 0.9, -1.8);
+    scene.add(fillLight);
+
+    // Light-Mode Architectural Showroom Plinth + Soft Contact Shadow
+    const floorGroup = new THREE.Group();
+
+    const plinth = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.56, 1.62, 0.045, 72),
+      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.06 })
+    );
+    plinth.position.y = -0.0225;
+    plinth.receiveShadow = true;
+    floorGroup.add(plinth);
+
+    const plinthBevel = new THREE.Mesh(
+      new THREE.RingGeometry(1.54, 1.565, 96),
+      new THREE.MeshBasicMaterial({ color: 0xcbd5e1, side: THREE.DoubleSide })
+    );
+    plinthBevel.rotation.x = -Math.PI / 2;
+    plinthBevel.position.y = 0.001;
+    floorGroup.add(plinthBevel);
+
+    const ringAccent = new THREE.Mesh(
+      new THREE.RingGeometry(1.42, 1.435, 96),
+      new THREE.MeshBasicMaterial({ color: 0xe63e21, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
+    );
+    ringAccent.rotation.x = -Math.PI / 2;
+    ringAccent.position.y = 0.002;
+    floorGroup.add(ringAccent);
+
+    function createSoftShadowTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(256, 128, 22, 256, 128, 230);
+      grad.addColorStop(0, 'rgba(15, 23, 42, 0.34)');
+      grad.addColorStop(0.5, 'rgba(15, 23, 42, 0.14)');
+      grad.addColorStop(1, 'rgba(15, 23, 42, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const aoShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.55, 1.25),
+      new THREE.MeshBasicMaterial({ map: createSoftShadowTexture(), transparent: true, depthWrite: false })
+    );
+    aoShadow.rotation.x = -Math.PI / 2;
+    aoShadow.position.y = 0.0025;
+    floorGroup.add(aoShadow);
+
+    const shadowPlane = new THREE.Mesh(
+      new THREE.CircleGeometry(5, 64),
+      new THREE.ShadowMaterial({ opacity: 0.22 })
+    );
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = 0.0015;
+    shadowPlane.receiveShadow = true;
+    floorGroup.add(shadowPlane);
+
+    scene.add(floorGroup);
+
+    /* =========================================================
+       3. REALISTIC .GLB LOADER, AUTO-GROUNDING & PART DISCOVERY
+       ========================================================= */
+    const bikeContainer = new THREE.Group();
+    scene.add(bikeContainer);
+
+    const overlayGroup = new THREE.Group();
+    bikeContainer.add(overlayGroup);
+
+    const partBuckets = {
+      paintMaterials: new Set(),
+      forkMaterials: new Set(),
+      wheelMaterials: new Set(),
+      tireMaterials: new Set(),
+      caliperMaterials: new Set(),
+      rotorMaterials: new Set(),
+      lightMaterials: new Set(),
+      frontWheelCenter: new THREE.Vector3(0.70, 0.31, 0),
+      rearWheelCenter: new THREE.Vector3(-0.70, 0.31, 0),
+      wheelRadius: 0.31
+    };
+
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/libs/draco/gltf/');
+
+    const ktx2Loader = new KTX2Loader();
+    ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/libs/basis/');
+    ktx2Loader.detectSupport(renderer);
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+    gltfLoader.setKTX2Loader(ktx2Loader);
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+    function resetBuckets() {
+      Object.values(partBuckets).forEach((v) => {
+        if (v instanceof Set) v.clear();
+      });
+    }
+
+    function clearOverlay() {
+      while (overlayGroup.children.length > 0) {
+        const c = overlayGroup.children[0];
+        overlayGroup.remove(c);
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
+      }
+    }
+
+    function normalizeBikeTransform(root) {
+      const box = new THREE.Box3().setFromObject(root);
+      const size = box.getSize(new THREE.Vector3());
+
+      if (size.z > size.x) {
+        root.rotation.y = Math.PI / 2;
+        root.updateMatrixWorld(true);
+        box.setFromObject(root);
+        box.getSize(size);
+      }
+
+      const targetLen = 2.12;
+      const scale = targetLen / Math.max(size.x, size.y, size.z, 0.001);
+      root.scale.multiplyScalar(scale);
+      root.updateMatrixWorld(true);
+
+      box.setFromObject(root);
+      const center = box.getCenter(new THREE.Vector3());
+      root.position.x -= center.x;
+      root.position.z -= center.z;
+      root.position.y -= box.min.y;
+      root.updateMatrixWorld(true);
+
+      box.setFromObject(root);
+      const halfX = box.getSize(new THREE.Vector3()).x * 0.2;
+      let maxRightY = -Infinity;
+      let maxLeftY = -Infinity;
+      const meshBox = new THREE.Box3();
+      root.traverse((obj) => {
+        if (obj.isMesh) {
+          meshBox.setFromObject(obj);
+          const mc = meshBox.getCenter(new THREE.Vector3());
+          if (mc.x > halfX) maxRightY = Math.max(maxRightY, meshBox.max.y);
+          if (mc.x < -halfX) maxLeftY = Math.max(maxLeftY, meshBox.max.y);
+        }
+      });
+      if (maxLeftY > maxRightY + 0.04) {
+        root.rotation.y += Math.PI;
+        root.updateMatrixWorld(true);
+        box.setFromObject(root);
+        const c2 = box.getCenter(new THREE.Vector3());
+        root.position.x -= c2.x;
+        root.position.z -= c2.z;
+        root.position.y -= box.min.y;
+        root.updateMatrixWorld(true);
+      }
+
+      box.setFromObject(root);
+      const finalSize = box.getSize(new THREE.Vector3());
+      partBuckets.frontWheelCenter.set(finalSize.x * 0.33, finalSize.y * 0.27, 0);
+      partBuckets.rearWheelCenter.set(-finalSize.x * 0.33, finalSize.y * 0.27, 0);
+      partBuckets.wheelRadius = finalSize.y * 0.27;
+
+      const fx = partBuckets.frontWheelCenter.x;
+      const rx = partBuckets.rearWheelCenter.x;
+      const wy = partBuckets.wheelRadius;
+
+      QUESTIONS[0].camera = { pos: new THREE.Vector3(fx + 0.44, wy + 0.12, 0.76), target: new THREE.Vector3(fx, wy, 0.03) };
+      QUESTIONS[1].camera = { pos: new THREE.Vector3(fx + 0.42, finalSize.y * 0.64, 1.08), target: new THREE.Vector3(fx * 0.48, finalSize.y * 0.48, 0) };
+      QUESTIONS[2].camera = { pos: new THREE.Vector3(rx - 0.48, wy + 0.15, 0.98), target: new THREE.Vector3(rx, wy, 0) };
+      QUESTIONS[3].camera = { pos: new THREE.Vector3(fx + 0.45, 0.24, 0.72), target: new THREE.Vector3(fx, 0.20, 0.02) };
+      QUESTIONS[4].camera = { pos: new THREE.Vector3(1.20, finalSize.y * 0.98, 1.18), target: new THREE.Vector3(0.08, finalSize.y * 0.64, 0) };
+      QUESTIONS[5].camera = { pos: new THREE.Vector3(fx + 0.48, finalSize.y * 0.82, 0.62), target: new THREE.Vector3(fx * 0.78, finalSize.y * 0.72, 0) };
+    }
+
+    function classifyBikeMeshes(root) {
+      resetBuckets();
+      const clonedMaterials = new Map();
+      const meshBox = new THREE.Box3();
+
+      root.traverse((obj) => {
+        if (!obj.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+
+        const origMats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        const newMats = origMats.map((m) => {
+          if (!m) return m;
+          if (!clonedMaterials.has(m.uuid)) {
+            const c = m.clone();
+            clonedMaterials.set(m.uuid, c);
+          }
+          return clonedMaterials.get(m.uuid);
+        });
+        obj.material = Array.isArray(obj.material) ? newMats : newMats[0];
+
+        meshBox.setFromObject(obj);
+        const center = meshBox.getCenter(new THREE.Vector3());
+        const name = `${obj.name} ${newMats.map((m) => m?.name || '').join(' ')}`.toLowerCase();
+
+        newMats.forEach((mat) => {
+          if (!mat) return;
+          const col = mat.color || new THREE.Color(0x888888);
+          const hsl = {};
+          col.getHSL(hsl);
+
+          if (/head|light|lamp|drl|lens|led|glow|emissive/.test(name) || (mat.emissive && mat.emissive.getHex() > 0x111111)) {
+            partBuckets.lightMaterials.add(mat);
+          }
+
+          if (/caliper|brembo/.test(name)) {
+            partBuckets.caliperMaterials.add(mat);
+          } else if (/disc|rotor|brake/.test(name)) {
+            partBuckets.rotorMaterials.add(mat);
+          }
+
+          if (/fork|ohlins|stanchion|shock|susp|spring/.test(name) || (hsl.h > 0.08 && hsl.h < 0.16 && hsl.s > 0.45 && center.y > 0.32)) {
+            partBuckets.forkMaterials.add(mat);
+          }
+
+          if (/tire|tyre|rubber|tread/.test(name)) {
+            partBuckets.tireMaterials.add(mat);
+          } else if (/wheel|rim|spoke|alloy/.test(name) || (hsl.s > 0.45 && hsl.h > 0.52 && hsl.h < 0.70 && center.y < 0.48)) {
+            partBuckets.wheelMaterials.add(mat);
+          }
+
+          if (/tank|fairing|body|paint|cowl|fender|panel|shell|chassis_cover/.test(name)) {
+            partBuckets.paintMaterials.add(mat);
+          } else if (
+            center.y > 0.54 &&
+            center.x > -0.45 &&
+            center.x < 0.62 &&
+            hsl.s > 0.18 &&
+            !/seat|saddle|tire|fork|caliper|light/.test(name)
+          ) {
+            partBuckets.paintMaterials.add(mat);
+          }
+        });
+      });
+
+      if (partBuckets.paintMaterials.size === 0) {
+        clonedMaterials.forEach((mat) => {
+          const hsl = {};
+          mat.color.getHSL(hsl);
+          if (hsl.s > 0.22 && !partBuckets.wheelMaterials.has(mat) && !partBuckets.forkMaterials.has(mat)) {
+            partBuckets.paintMaterials.add(mat);
+          }
+        });
+      }
+    }
+
+    /* =========================================================
+       4. LIVE PERMUTATION APPLICATION ON THE REALISTIC BIKE
+       ========================================================= */
+    function applyPermutationsToBike() {
+      clearOverlay();
+
+      const fx = partBuckets.frontWheelCenter.x;
+      const rx = partBuckets.rearWheelCenter.x;
+      const wy = partBuckets.wheelRadius;
+
+      const liveryOpt = QUESTIONS[4].options.find((o) => o.value === state.livery);
+      partBuckets.paintMaterials.forEach((mat) => {
+        mat.color.set(liveryOpt.color);
+        if ('clearcoat' in mat) {
+          mat.clearcoat = 1.0;
+          mat.clearcoatRoughness = 0.06;
+        }
+        mat.metalness = state.livery === 'titanium' ? 0.85 : state.livery === 'stealth' ? 0.35 : 0.45;
+        mat.roughness = state.livery === 'stealth' ? 0.38 : 0.16;
+        mat.needsUpdate = true;
+      });
+
+      const suspColor =
+        state.suspension === 'ohlins' ? 0xd9a12b :
+        state.suspension === 'dlc' ? 0x181b22 : 0xe4e8f0;
+      partBuckets.forkMaterials.forEach((mat) => {
+        mat.color.setHex(suspColor);
+        mat.metalness = state.suspension === 'chrome' ? 1.0 : 0.88;
+        mat.roughness = state.suspension === 'chrome' ? 0.07 : state.suspension === 'dlc' ? 0.28 : 0.20;
+        mat.needsUpdate = true;
+      });
+
+      const wheelColor = state.wheels === 'blue' ? 0x1047d6 : 0xd6a84c;
+      partBuckets.wheelMaterials.forEach((mat) => {
+        mat.color.setHex(wheelColor);
+        mat.metalness = 0.82;
+        mat.roughness = 0.22;
+        mat.needsUpdate = true;
+      });
+
+      partBuckets.tireMaterials.forEach((mat) => {
+        mat.color.setHex(state.tires === 'hypersport' ? 0x121316 : 0x1a1c20);
+        mat.roughness = state.tires === 'hypersport' ? 0.72 : 0.88;
+      });
+
+      if (state.tires === 'hypersport') {
+        const stripeColor = state.livery === 'crimson' ? 0xe63e21 : 0x2563eb;
+        const stripeMat = new THREE.MeshBasicMaterial({ color: stripeColor });
+        [fx, rx].forEach((wx) => {
+          [-0.062, 0.062].forEach((wz) => {
+            const stripe = new THREE.Mesh(
+              new THREE.TorusGeometry(wy * 0.69, 0.004, 8, 56),
+              stripeMat
+            );
+            stripe.position.set(wx, wy, wz);
+            overlayGroup.add(stripe);
+          });
+        });
+      }
+
+      if (state.brakes === 'disc') {
+        partBuckets.caliperMaterials.forEach((mat) => {
+          mat.color.setHex(0xe02222);
+          mat.metalness = 0.45;
+          mat.roughness = 0.2;
+        });
+        partBuckets.rotorMaterials.forEach((mat) => {
+          mat.color.setHex(0xd4dae2);
+          mat.metalness = 0.92;
+          mat.roughness = 0.18;
+        });
+
+        const calMat = new THREE.MeshStandardMaterial({ color: 0xe22020, metalness: 0.45, roughness: 0.22 });
+        const cal = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.078, 0.028), calMat);
+        cal.position.set(fx - 0.115, wy + 0.075, 0.074);
+        cal.rotation.z = 0.62;
+        overlayGroup.add(cal);
+      } else {
+        const drumAlloy = new THREE.MeshStandardMaterial({ color: 0xc2c8d2, metalness: 0.88, roughness: 0.24 });
+        const drumFinMat = new THREE.MeshStandardMaterial({ color: 0xf0f4fa, metalness: 0.96, roughness: 0.12 });
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x1e222b, metalness: 0.72, roughness: 0.35 });
+
+        [
+          { x: fx, r: 0.118 },
+          { x: rx, r: 0.105 }
+        ].forEach(({ x, r }) => {
+          const drum = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.068, 36), drumAlloy);
+          drum.rotation.x = Math.PI / 2;
+          drum.position.set(x, wy, 0.056);
+          drum.castShadow = true;
+          overlayGroup.add(drum);
+
+          for (let f = 0; f < 4; f++) {
+            const fin = new THREE.Mesh(new THREE.TorusGeometry(r + 0.004, 0.0035, 8, 36), drumFinMat);
+            fin.position.set(x, wy, 0.036 + f * 0.013);
+            overlayGroup.add(fin);
+          }
+
+          const torqueArm = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.19, 10), armMat);
+          torqueArm.rotation.z = Math.PI / 2 - 0.2;
+          torqueArm.position.set(x - 0.11, wy + 0.06, 0.088);
+          overlayGroup.add(torqueArm);
+        });
+      }
+
+      partBuckets.lightMaterials.forEach((mat) => {
+        if (state.optics === 'ice') {
+          mat.emissive?.setHex(0xdff4ff);
+          mat.emissiveIntensity = 3.0;
+        } else if (state.optics === 'amber') {
+          mat.emissive?.setHex(0xffa726);
+          mat.emissiveIntensity = 2.6;
+        } else {
+          mat.emissive?.setHex(0x3a485e);
+          mat.emissiveIntensity = 0.7;
+        }
+        mat.needsUpdate = true;
+      });
+    }
+
+    /* =========================================================
+       5. RESOLVE & LOAD REALISTIC OPEN-SOURCE .GLB MOTORCYCLE
+       ========================================================= */
+    const loaderOverlay = document.getElementById('loader-overlay');
+    const loaderBar = document.getElementById('loader-bar');
+    const loaderStatus = document.getElementById('loader-status');
+
+    function extractYamahaGlbUrl(data, baseUrl) {
+      const candidates = [];
+      function walk(node, hint = '') {
+        if (!node) return;
+        if (typeof node === 'string') {
+          if (/\.glb(\?|$)/i.test(node)) candidates.push({ url: node, hint });
+          return;
+        }
+        if (Array.isArray(node)) {
+          node.forEach((item) => walk(item, hint));
+          return;
+        }
+        if (typeof node === 'object') {
+          const localHint = `${hint} ${node.id || ''} ${node.name || ''} ${node.title || ''} ${node.label || ''}`.toLowerCase();
+          Object.values(node).forEach((val) => walk(val, localHint));
+        }
+      }
+      walk(data);
+      const match = candidates.find((c) => /yamaha|mt-?09|motor|bike/i.test(`${c.hint} ${c.url}`));
+      if (!match) return null;
+      return new URL(match.url, baseUrl).href;
+    }
+
+    async function findMotorcycleGlbUrls() {
+      const urls = [];
+      const base = 'https://raw.githubusercontent.com/pissang/mutracer-assets/main/';
+      for (const manifest of ['presets.json', 'catalog.json', 'models.json']) {
+        try {
+          const res = await fetch(`${base}${manifest}`);
+          if (res.ok) {
+            const json = await res.json();
+            const found = extractYamahaGlbUrl(json, base);
+            if (found) urls.push(found);
+          }
+        } catch (_) {}
+      }
+      urls.push(
+        `${base}assets/yamaha-mt-09/model.glb`,
+        `${base}assets/yamaha-mt-09-sp/model.glb`,
+        `${base}assets/yamaha-mt09/model.glb`,
+        'https://raw.githubusercontent.com/IMACULGY/Protron/master/assets/bike.glb'
+      );
+      return [...new Set(urls)];
+    }
+
+    let activeModelRoot = null;
+
+    async function loadGlbIntoScene(url, label = 'Yamaha MT-09 SP', credit = 'Open-Source 3D Model (CC-BY-NC-SA 4.0)') {
+      loaderOverlay.classList.remove('hidden');
+      loaderBar.style.width = '18%';
+      loaderStatus.textContent = 'Downloading high-detail PBR mesh...';
+
+      const gltf = await new Promise((resolve, reject) => {
+        gltfLoader.load(
+          url,
+          resolve,
+          (xhr) => {
+            if (xhr.total > 0) {
+              const pct = Math.min(96, Math.max(18, Math.round((xhr.loaded / xhr.total) * 100)));
+              loaderBar.style.width = `${pct}%`;
+              loaderStatus.textContent = `Streaming 3D geometry & textures (${pct}%)`;
+            }
+          },
+          reject
+        );
+      });
+
+      if (activeModelRoot) {
+        bikeContainer.remove(activeModelRoot);
+      }
+
+      activeModelRoot = gltf.scene;
+      normalizeBikeTransform(activeModelRoot);
+      classifyBikeMeshes(activeModelRoot);
+      bikeContainer.add(activeModelRoot);
+
+      document.getElementById('bike-model-title').textContent = label;
+      document.getElementById('bike-model-credit').textContent = credit;
+
+      applyPermutationsToBike();
+      focusCamera(HERO_CAMERA.pos, HERO_CAMERA.target, false, false);
+      loaderBar.style.width = '100%';
+      setTimeout(() => loaderOverlay.classList.add('hidden'), 260);
+    }
+
+    async function bootModel() {
+      const candidates = await findMotorcycleGlbUrls();
+      for (const url of candidates) {
+        try {
+          await loadGlbIntoScene(url);
+          return;
+        } catch (err) {
+          console.warn('Trying next model URL after error on:', url, err);
+        }
+      }
+      loaderStatus.textContent = 'Could not reach external CDN — use "Custom .GLB" button above.';
+    }
+
+    bootModel();
+
+    document.getElementById('custom-glb-input').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const blobUrl = URL.createObjectURL(file);
+      try {
+        await loadGlbIntoScene(blobUrl, file.name.replace(/\.(glb|gltf)$/i, ''), 'Custom Local 3D Bike Model');
+      } catch (err) {
+        console.error(err);
+        loaderStatus.textContent = 'Invalid GLB/GLTF file.';
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    });
+
+    /* =========================================================
+       6. CAMERA SMOOTH ZOOM TWEENING
+       ========================================================= */
+    const camTween = {
+      active: false,
+      progress: 0,
+      duration: 0.78,
+      startPos: new THREE.Vector3(),
+      endPos: new THREE.Vector3(),
+      startTarget: new THREE.Vector3(),
+      endTarget: new THREE.Vector3(),
+      startFov: 38,
+      endFov: 38
+    };
+
+    let currentCameraPreset = { pos: HERO_CAMERA.pos, target: HERO_CAMERA.target, isZoomed: false };
+    let userManuallyOrbited = false;
+
+    function focusCamera(basePos, baseTarget, pauseSpin = true, isZoomed = true) {
+      currentCameraPreset = { pos: basePos, target: baseTarget, isZoomed };
+      userManuallyOrbited = false;
+
+      const view = getResponsiveCameraView(basePos, baseTarget, isZoomed);
+      camTween.startPos.copy(camera.position);
+      camTween.startTarget.copy(controls.target);
+      camTween.endPos.copy(view.pos);
+      camTween.endTarget.copy(view.target);
+      camTween.startFov = camera.fov;
+      camTween.endFov = view.fov;
+      camTween.progress = 0;
+      camTween.active = true;
+
+      if (pauseSpin) {
+        controls.autoRotate = false;
+        state.autoRotate = false;
+        document.getElementById('btn-spin').classList.remove('active');
+      }
+    }
+
+    controls.addEventListener('start', () => {
+      camTween.active = false;
+      userManuallyOrbited = true;
+    });
+
+    /* =========================================================
+       7. RIGHT/BOTTOM CONFIGURATOR UI
+       ========================================================= */
+    const stepPillsEl = document.getElementById('step-pills');
+    const questionsListEl = document.getElementById('questions-list');
+
+    function renderUI() {
+      stepPillsEl.innerHTML = '';
+      questionsListEl.innerHTML = '';
+
+      QUESTIONS.forEach((q, idx) => {
+        const pill = document.createElement('button');
+        pill.className = `step-pill ${state.activeQuestionId === q.id ? 'active' : ''}`;
+        pill.textContent = q.stepLabel;
+        pill.addEventListener('click', () => activateQuestion(q.id, true));
+        stepPillsEl.appendChild(pill);
+
+        const card = document.createElement('div');
+        card.className = `question-card ${state.activeQuestionId === q.id ? 'active' : ''}`;
+        card.id = `card-${q.id}`;
+        card.addEventListener('click', () => activateQuestion(q.id));
+
+        const header = document.createElement('div');
+        header.className = 'q-header';
+        header.innerHTML = `
+          <div>
+            <div class="q-number">Question 0${idx + 1}</div>
+            <div class="q-prompt">${q.prompt}</div>
+          </div>
+          <span class="q-zoom-tag">⌖ ${q.zoneTag}</span>
+        `;
+        card.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = `options-grid ${q.layout === 'cols-3' ? 'cols-3' : q.layout === 'swatches' ? 'swatches' : ''}`;
+
+        q.options.forEach((opt) => {
+          const btn = document.createElement('button');
+          const selected = state[q.id] === opt.value;
+          btn.className = `option-btn ${q.layout === 'swatches' ? 'swatch-btn' : ''} ${selected ? 'selected' : ''}`;
+
+          if (q.layout === 'swatches') {
+            btn.innerHTML = `
+              <span class="swatch-circle" style="background:${opt.color};"></span>
+              <span class="opt-title">${opt.title}</span>
+            `;
+          } else {
+            btn.innerHTML = `
+              <span class="opt-title">${opt.title}</span>
+              <span class="opt-meta">${opt.meta}</span>
+              <span class="opt-price">${opt.priceDelta > 0 ? `+$${opt.priceDelta}` : 'Standard'}</span>
+            `;
+          }
+
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectOption(q.id, opt.value);
+          });
+          grid.appendChild(btn);
+        });
+
+        card.appendChild(grid);
+        questionsListEl.appendChild(card);
+      });
+
+      updateSummaryAndCallout();
+    }
+
+    function activateQuestion(questionId, scrollCard = false) {
+      state.activeQuestionId = questionId;
+      const q = QUESTIONS.find((item) => item.id === questionId);
+      if (q) focusCamera(q.camera.pos, q.camera.target, true, true);
+
+      document.querySelectorAll('.question-card').forEach((c) => c.classList.remove('active'));
+      const activeCard = document.getElementById(`card-${questionId}`);
+      if (activeCard) {
+        activeCard.classList.add('active');
+        if (scrollCard) {
+          activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+
+      document.querySelectorAll('.step-pill').forEach((p, idx) => {
+        p.classList.toggle('active', QUESTIONS[idx].id === questionId);
+      });
+
+      updateSummaryAndCallout();
+    }
+
+    function selectOption(questionId, value) {
+      state[questionId] = value;
+      applyPermutationsToBike();
+      activateQuestion(questionId);
+      renderUI();
+    }
+
+    function updateSummaryAndCallout() {
+      let totalPrice = 11069;
+      let totalWeight = 195.3;
+      const codes = [];
+
+      QUESTIONS.forEach((q) => {
+        const opt = q.options.find((o) => o.value === state[q.id]);
+        totalPrice += opt.priceDelta;
+        totalWeight += opt.weightDelta;
+        codes.push(opt.code);
+      });
+
+      const brakeOpt = QUESTIONS[0].options.find((o) => o.value === state.brakes);
+      document.getElementById('spec-weight').textContent = `${totalWeight.toFixed(1)} kg`;
+      document.getElementById('spec-brake').textContent = brakeOpt.brakeScore;
+      document.getElementById('spec-build-id').textContent = codes.slice(0, 3).join('-');
+      document.getElementById('total-price').textContent = `$${totalPrice.toLocaleString()}`;
+
+      const z = document.getElementById('callout-zone');
+      const t = document.getElementById('callout-title');
+      const d = document.getElementById('callout-desc');
+
+      if (!state.activeQuestionId) {
+        z.textContent = 'INSPECTING: FULL BIKE';
+        t.textContent = 'Hero 3/4 Studio Angle';
+        d.textContent = 'Select any question on the configurator panel to zoom smoothly into that component.';
+      } else {
+        const q = QUESTIONS.find((item) => item.id === state.activeQuestionId);
+        const opt = q.options.find((o) => o.value === state[q.id]);
+        z.textContent = `ZOOMED: ${q.zoneTag}`;
+        t.textContent = opt.title;
+        d.textContent = opt.meta || `Custom high-gloss ${opt.title} clearcoat finish applied to tank & bodywork.`;
+      }
+    }
+
+    document.getElementById('btn-overview').addEventListener('click', () => {
+      state.activeQuestionId = null;
+      focusCamera(HERO_CAMERA.pos, HERO_CAMERA.target, false, false);
+      renderUI();
+    });
+
+    document.getElementById('btn-spin').addEventListener('click', (e) => {
+      state.autoRotate = !state.autoRotate;
+      controls.autoRotate = state.autoRotate;
+      e.currentTarget.classList.toggle('active', state.autoRotate);
+    });
+
+    document.getElementById('btn-randomize').addEventListener('click', () => {
+      QUESTIONS.forEach((q) => {
+        state[q.id] = q.options[Math.floor(Math.random() * q.options.length)].value;
+      });
+      applyPermutationsToBike();
+      state.activeQuestionId = null;
+      focusCamera(HERO_CAMERA.pos, HERO_CAMERA.target, false, false);
+      renderUI();
+    });
+
+    document.getElementById('btn-reserve').addEventListener('click', () => {
+      const code = QUESTIONS.map((q) => q.options.find((o) => o.value === state[q.id]).code).join('-');
+      const price = document.getElementById('total-price').textContent;
+      const toast = document.getElementById('build-toast');
+      toast.textContent = `✓ Build ${code} saved (${price})`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3600);
+    });
+
+    renderUI();
+
+    /* =========================================================
+       8. ANIMATION LOOP & RESPONSIVE RESIZE HANDLER
+       ========================================================= */
+    const clock = new THREE.Clock();
+    const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (camTween.active) {
+        camTween.progress += dt / camTween.duration;
+        const t = Math.min(camTween.progress, 1);
+        const eased = easeInOutCubic(t);
+        camera.position.lerpVectors(camTween.startPos, camTween.endPos, eased);
+        controls.target.lerpVectors(camTween.startTarget, camTween.endTarget, eased);
+        camera.fov = THREE.MathUtils.lerp(camTween.startFov, camTween.endFov, eased);
+        camera.updateProjectionMatrix();
+        if (t >= 1) camTween.active = false;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    new ResizeObserver(() => {
+      const w = stageContainer.clientWidth;
+      const h = stageContainer.clientHeight;
+      if (!w || !h) return;
+
+      camera.aspect = w / h;
+      const view = getResponsiveCameraView(
+        currentCameraPreset.pos,
+        currentCameraPreset.target,
+        currentCameraPreset.isZoomed
+      );
+      camera.fov = view.fov;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+
+      if (!userManuallyOrbited && !camTween.active) {
+        camera.position.copy(view.pos);
+        controls.target.copy(view.target);
+      }
+    }).observe(stageContainer);
+  </script>
+</body>
+</html>
